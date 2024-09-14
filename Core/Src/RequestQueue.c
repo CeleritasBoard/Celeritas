@@ -18,7 +18,7 @@ static uint8_t size = 0;								// number of elements in the queue
  * @return The position to insert the new request
  */
 static uint8_t find_insert_position(uint32_t time){
-	for (int i = head; i != tail; i++){
+	for (uint8_t i = head; i != tail; i++){
 		if (request_queue[i].start_time>time){
 			return i;
 		}
@@ -35,7 +35,7 @@ void request_queue_put(Request request){
 
 	uint8_t insert_pos = find_insert_position(request.start_time);
 
-	for (int i = size; i > insert_pos; i--){
+	for (uint8_t i = size; i > insert_pos; i--){
 		request_queue[i] = request_queue[i-1];
 	}
 	request_queue[insert_pos] = request;
@@ -66,7 +66,7 @@ Request request_queue_get(void){
  * If the queue is empty or the ID is not found, the function does nothing.
  */
 void request_queue_delete(uint8_t id){
-	for (int i = 0; i < size; i++){
+	for (uint8_t i = 0; i < size; i++){
 		uint8_t index = (head+i) % REQUEST_QUEUE_SIZE;
 		if (request_queue[index].ID == id){
 			for (int j = i; j < size-1; j++){
