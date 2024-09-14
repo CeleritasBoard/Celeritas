@@ -2,6 +2,7 @@
  * RequestQueue.h
  *
  * Created on: Sep 4, 2024
+ * Edit on: Sep 14, 2024
  * 	   Author: badam
  */
 #include "RequestQueue.h"
@@ -11,13 +12,13 @@ static uint8_t head = 0;
 static uint8_t tail = 0;
 static uint8_t size = 0;
 
-static uint8_t find_insert_posititon(uint32_t time){
-	for (in i = 0; i < size; i++){
+static uint8_t find_insert_position(uint32_t time){
+	for (int i = head; i != tail; i++){
 		if (request_queue[i].start_time>time){
 			return i;
 		}
 	}
-	return size;
+	return tail;
 }
 
 void request_queue_put(Request request){
