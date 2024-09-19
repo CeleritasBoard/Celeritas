@@ -16,14 +16,20 @@
 
 #include "main.h"
 #include "exp_i2c_slave.h"
+#include "Commands/Commands.h"
+#include "RequestQueue.h"
+#include "Checksum.h"
+#include "i2c_queue.h"
 
 extern I2C_HandleTypeDef hi2c1;
 extern ADC_HandleTypeDef hadc1;
 
 #define RxSIZE 8
 #define TxSIZE 16
-uint8_t RxData[RxSIZE];
-uint8_t TxData[TxSIZE] = {0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0A, 0x0B, 0x0C, 0x0D, 0x0E, 0x0F};
+static uint8_t RxData[RxSIZE];
+static uint8_t TxData[TxSIZE] = {0x00};
+static uint8_t TX_TEMPLATE[TxSIZE] = {0xFF};
+
 uint8_t rxcount;
 uint8_t txcount;
 uint8_t bytesTransd = 0;
@@ -51,8 +57,13 @@ extern void HAL_I2C_AddrCallback(I2C_HandleTypeDef *hi2c, uint8_t TransferDirect
 	else
 	{
 		txcount = 0;
-		//startPosition = RxData[0];
-		//RxData[0] = 0;
+		uint8_t * packet = queue_get();
+		if(!packet) packet = TX_TEMPLATE;
+		else {
+			for(int i = 0; i < TxSIZE; i++) {
+				TxData[i] = packet[i];
+			}
+		}
 		HAL_I2C_Slave_Seq_Transmit_IT(hi2c, TxData+txcount, 1, I2C_FIRST_FRAME);
 	}
 }
@@ -83,7 +94,6 @@ void HAL_I2C_SlaveTxCpltCallback(I2C_HandleTypeDef *hi2c)
 	txcount++;
 	if(txcount == TxSIZE-1){
 		HAL_I2C_Slave_Seq_Transmit_IT(hi2c, TxData+txcount, 1, I2C_LAST_FRAME);
-		//measure();
 	}
 	else{
 		HAL_I2C_Slave_Seq_Transmit_IT(hi2c, TxData+txcount, 1, I2C_NEXT_FRAME);
@@ -116,17 +126,51 @@ void HAL_I2C_ErrorCallback(I2C_HandleTypeDef *hi2c) //Bus Error / Berror??????
 
 void process_RxData()
 {
-	for(int i = 0; i < RxSIZE; i++){
-		TxData[i] = RxData[i];
+	// Step 01: Message checksum checking
+	if(1){
+		// Step 02: Separate the different parts of RxData
+		uint8_t command_id = RxData[1];
+		uint8_t command_dec[5];
+		for (int i = 2; i < 7; i++) command_dec[i-2] = RxData[i];
+
+		// Step 03: Find which command to execute
+		switch(RxData[0]){
+		case '0xE0':
+			//set_duration(uint8_t * message);
+			break;
+		case '0xD0':
+			//set_scale(uint8_t * message);
+			break;
+		case 0x07:
+			reMeasure(command_id, command_dec);
+			break;
+		case '0x06':
+			//RequestSelfTest(uint8_t * message);
+			break;
+		case '0x0F':
+			//ABReset();
+			break;
+		case '0x0E':
+			//Restart();
+			break;
+		case '0x0D':
+			//Delete_all_measurements();
+			break;
+		case '0x0C' :
+			//Delete_measurements(uint8_t * message); //ide jön a teljes üzenet
+			break;
+		case '0x0B':
+			//Delete_all_request();
+			break;
+		case '0x0A':
+			//Delete_requests(uint8_t * message); //ide jön a teljes üzenet
+			break;
+		default:
+			break;
+		}
 	}
-	for(int j = RxSIZE; j < TxSIZE; j++)
-	{
-		TxData[j] = RxData[j-RxSIZE];
+	else{
+		//invalid command error
 	}
 
 }
-
-
-
-
-

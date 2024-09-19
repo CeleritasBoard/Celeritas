@@ -9,6 +9,7 @@
 #define INC_REQUEST_HANDLER_H_
 
 #include <stdint.h>
+#include <stdbool.h>
 
 typedef enum class {
 	SELFTEST = 0x01,
