@@ -20,11 +20,14 @@
 #include "RequestQueue.h"
 #include "Checksum.h"
 #include "i2c_queue.h"
+#include "timer.h"
+#include "stdbool.h"
 
 extern I2C_HandleTypeDef hi2c1;
 extern ADC_HandleTypeDef hadc1;
 
 #define RxSIZE 8
+#define TsyncSIZE 5
 #define TxSIZE 16
 static uint8_t RxData[RxSIZE];
 static uint8_t TxData[TxSIZE] = {0x00};
@@ -68,12 +71,20 @@ extern void HAL_I2C_AddrCallback(I2C_HandleTypeDef *hi2c, uint8_t TransferDirect
 	}
 }
 
+bool isTimesyncCommand(void){
+	return (RxData[0] == '0x54');
+}
+
 void HAL_I2C_SlaveRxCpltCallback(I2C_HandleTypeDef *hi2c)
 {
 	rxcount++;
 	if (rxcount < RxSIZE)
 	{
-		if (rxcount == RxSIZE-1)
+		if (rxcount == TsyncSIZE-1 && isTimesyncCommand())
+		{
+			HAL_I2C_Slave_Sequential_Receive_IT(hi2c, RxData+rxcount, 1, I2C_LAST_FRAME);
+		}
+		else if (rxcount == RxSIZE-1)
 		{
 			HAL_I2C_Slave_Sequential_Receive_IT(hi2c, RxData+rxcount, 1, I2C_LAST_FRAME);
 		}
@@ -83,7 +94,11 @@ void HAL_I2C_SlaveRxCpltCallback(I2C_HandleTypeDef *hi2c)
 		}
 	}
 
-	if (rxcount == RxSIZE)
+	if (rxcount == TsyncSIZE && isTimesyncCommand())
+	{
+		process_TimesyncCommand();
+	}
+	else if (rxcount == RxSIZE)
 	{
 		process_RxData();
 	}
@@ -173,4 +188,11 @@ void process_RxData()
 		//invalid command error
 	}
 
+}
+
+void process_TimesyncCommand(void)
+{
+	uint32_t timestamp = (RxData[4]<<24) | (RxData[3]<<16) | (RxData[2]<<8) | RxData[1];
+
+	UpdateSystemTime(timestamp);
 }

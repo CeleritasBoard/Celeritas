@@ -23,6 +23,7 @@
 /* USER CODE BEGIN Includes */
 #include "RequestQueue.h"
 #include "i2c_queue.h"
+#include "timer.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
