@@ -1,7 +1,0 @@
-../Core/Src/i2c_queue.c:41:8:copy_to_queue	2
-../Core/Src/i2c_queue.c:26:7:queue_push	5
-../Core/Src/i2c_queue.c:57:11:queue_get	2
-../Core/Src/i2c_queue.c:71:7:queue_clear	1
-../Core/Src/i2c_queue.c:78:6:add_header	2
-../Core/Src/i2c_queue.c:102:7:add_spectrum	7
-../Core/Src/i2c_queue.c:135:7:add_error	4
