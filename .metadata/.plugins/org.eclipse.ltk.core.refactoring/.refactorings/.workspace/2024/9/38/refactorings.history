@@ -1,3 +1,0 @@
-<?xml version="1.0" encoding="UTF-8"?>
-<session version="1.0">&#x0A;<refactoring comment="Delete resource &apos;Core/Inc/i2c_sync.h&apos;" deleteContents="false" description="Delete resource &apos;Core/Inc/i2c_sync.h&apos;" element1="/Core/Inc/i2c_sync.h" flags="7" id="org.eclipse.ltk.core.refactoring.delete.resources" resources="1" stamp="1726723811349"/>&#x0A;<refactoring comment="Delete resource &apos;Core/Src/i2c_sync.c&apos;" deleteContents="false" description="Delete resource &apos;Core/Src/i2c_sync.c&apos;" element1="/Core/Src/i2c_sync.c" flags="7" id="org.eclipse.ltk.core.refactoring.delete.resources" resources="1" stamp="1726723820697"/>
-</session>

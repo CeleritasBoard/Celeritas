@@ -1,0 +1,7 @@
+../Core/Src/i2c_queue.c:41:8:copy_to_queue	32	static
+../Core/Src/i2c_queue.c:26:7:queue_push	40	static
+../Core/Src/i2c_queue.c:57:11:queue_get	24	static
+../Core/Src/i2c_queue.c:71:7:queue_clear	4	static
+../Core/Src/i2c_queue.c:78:6:add_header	40	static
+../Core/Src/i2c_queue.c:102:7:add_spectrum	80	dynamic
+../Core/Src/i2c_queue.c:135:7:add_error	24	static

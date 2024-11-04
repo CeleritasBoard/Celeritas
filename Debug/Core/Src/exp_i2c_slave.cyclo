@@ -1,0 +1,6 @@
+../Core/Src/exp_i2c_slave.c:44:13:HAL_I2C_ListenCpltCallback	1
+../Core/Src/exp_i2c_slave.c:49:13:HAL_I2C_AddrCallback	4
+../Core/Src/exp_i2c_slave.c:73:6:HAL_I2C_SlaveRxCpltCallback	4
+../Core/Src/exp_i2c_slave.c:94:6:HAL_I2C_SlaveTxCpltCallback	2
+../Core/Src/exp_i2c_slave.c:106:6:HAL_I2C_ErrorCallback	3
+../Core/Src/exp_i2c_slave.c:129:6:process_RxData	6

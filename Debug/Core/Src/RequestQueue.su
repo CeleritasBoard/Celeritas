@@ -1,0 +1,5 @@
+../Core/Src/RequestQueue.c:19:16:find_insert_position	24	static
+../Core/Src/RequestQueue.c:32:6:request_queue_put	24	static
+../Core/Src/RequestQueue.c:50:9:request_queue_get	64	static
+../Core/Src/RequestQueue.c:66:6:request_queue_delete	40	static
+../Core/Src/RequestQueue.c:86:6:request_queue_clear	4	static
