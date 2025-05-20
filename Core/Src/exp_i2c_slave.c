@@ -160,7 +160,7 @@ void process_Command()
 			reSelftest(command_id, command_dec);
 			break;
 		case 0x0F:
-			flash_reset();
+			//flash_reset();
 			scheduler_restart();
 			break;
 		case 0x0E:
