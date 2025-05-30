@@ -15,6 +15,7 @@
 #include "Timer.h"
 #include "Scheduler.h"
 #include "Flash.h"
+#include "Statusreport.h"
 
 extern I2C_HandleTypeDef hi2c1;
 extern ADC_HandleTypeDef hadc1;
@@ -24,7 +25,7 @@ extern ADC_HandleTypeDef hadc1;
 #define TxSIZE 16
 static uint8_t RxData[RxSIZE];
 static uint8_t TxData[TxSIZE] = {0x00};
-static uint8_t TX_TEMPLATE[TxSIZE] = {0x00};
+//static uint8_t TX_TEMPLATE[TxSIZE] = {0x00};
 
 uint8_t rxcount;
 uint8_t txcount;
@@ -43,8 +44,6 @@ extern void HAL_I2C_ListenCpltCallback (I2C_HandleTypeDef *hi2c)
 
 extern void HAL_I2C_AddrCallback(I2C_HandleTypeDef *hi2c, uint8_t TransferDirection, uint16_t AddrMatchCode)
 {
-	scheduler_on_i2c_communication();
-
 	if(TransferDirection == I2C_DIRECTION_TRANSMIT)  // if the master wants to transmit the data
 	{
 		rxcount = 0;
@@ -56,12 +55,16 @@ extern void HAL_I2C_AddrCallback(I2C_HandleTypeDef *hi2c, uint8_t TransferDirect
 		txcount = 0;
 		bool result;
 		uint8_t* packet = i2c_queue_get(&result);
-		if(!result) packet = TX_TEMPLATE;
+		if(!result){
+			packet = generate_status_report();
+		}
+		//if(packet[0] == 0x00) packet = TX_TEMPLATE; in the older version default packets were full of zeros
 		for(int i = 0; i < TxSIZE; i++) {
 			TxData[i] = packet[i];
 		}
 		HAL_I2C_Slave_Seq_Transmit_IT(hi2c, TxData+txcount, 1, I2C_FIRST_FRAME);
 	}
+	scheduler_on_i2c_communication();
 }
 
 bool isTimesyncCommand(){
@@ -98,7 +101,7 @@ void HAL_I2C_SlaveTxCpltCallback(I2C_HandleTypeDef *hi2c)
 	txcount++;
 	if(txcount == TxSIZE-1){
 		HAL_I2C_Slave_Seq_Transmit_IT(hi2c, TxData+txcount, 1, I2C_LAST_FRAME);
-		scheduler_on_command();
+
 	}
 	else{
 		HAL_I2C_Slave_Seq_Transmit_IT(hi2c, TxData+txcount, 1, I2C_NEXT_FRAME);
@@ -125,7 +128,7 @@ void HAL_I2C_ErrorCallback(I2C_HandleTypeDef *hi2c) //Bus Error / Berror??????
 	}
 	HAL_I2C_EnableListen_IT(hi2c);
 
-	//BERR error akkor fordul elő ha változik a kommunikáció iránya
+	//BERR error occurs when the direction of communication changes
 }
 
 void process_TimesyncCommand(void)
@@ -160,14 +163,17 @@ void process_Command()
 			reSelftest(command_id, command_dec);
 			break;
 		case 0x0F:
-			//flash_reset();
+			scheduler_clear_all_flash(); //reset to zeros and save all in flash
 			scheduler_restart();
 			break;
 		case 0x0E:
 			scheduler_restart();
 			break;
+		case 0xAA:
+			scheduler_save_all(); //do not reset, only save flash
+			break;
 		default:
-			add_error(command_id, CORRUPTED);
+			add_error(command_id, UNKNOWNCOMMAND);
 			return;
 		}
 		scheduler_on_command();

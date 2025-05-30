@@ -4,7 +4,7 @@
  *  Created on: Aug 9, 2024
  *      Author: hadha
  *
- * 	Last update: R. Gerendas, May 9 2025
+ * 	Last update: Roland Gerendas, May 29 2025
  */
 
 #include "Measurements.h"
@@ -146,7 +146,7 @@ void measure(Request request){
 		for (int i = 0; i < 8; i++)		//swapping bytes for Big Endian
 			geiger_mode_out[i] = (geiger_mode_out[i] << 8) | (geiger_mode_out[i] >> 8);
 
-		add_spectrum(geiger_mode_out);
+		add_spectrum(geiger_mode_out, request.ID);
 
 	} else {
 		// "spectrum" mode
@@ -157,7 +157,7 @@ void measure(Request request){
 
 		uint8_t packets = arr_length / 8;			//save the packets in the i2c queue
 		for (uint8_t i = 0; i < packets; i++) {
-			add_spectrum(measurementData+(i*8));
+			add_spectrum(measurementData+(i*8), request.ID);
 		}
 	}
 
@@ -170,7 +170,7 @@ void measure(Request request){
  */
 uint16_t sample_adc(uint8_t samples, uint16_t min_voltage, uint16_t max_voltage, bool is_okay){
 	uint16_t sum = 0; //ADC value
-	uint16_t noise_bounds = 10;
+	uint16_t noise_bounds = 10; // in ADC values, this means 8 mV
 
 	void wait_for_min_threshold(bool okaying) {								//wait for the analog voltage to drop below the specified minimum threshold
 		if(okaying) HAL_GPIO_WritePin(GPIOA, GPIO_PIN_5, GPIO_PIN_SET);		//if the okaying bit is set, open the transistor to drain current faster from the capacitor of the peak holder
@@ -194,11 +194,11 @@ uint16_t sample_adc(uint8_t samples, uint16_t min_voltage, uint16_t max_voltage,
 		sum = analogRead(); 					// measure ADC
 		if(sum > (max_voltage - noise_bounds)) {					// if the voltage is higher than the maximum threshold, it means the peak is too high amplitude
 			is_v_high = 1;						//indicate that the voltage is above the minimum threshold
-			wait_for_min_threshold(true);		//wait for the too high peak to drop
-		} else { is_v_high = 0;};				//otherwhys the voltage is below min threshold
+			wait_for_min_threshold(is_okay);		//wait for the too high peak to drop
+		} else { is_v_high = 0;};				//otherwise the voltage is below minimum threshold
 		if(!(sum > (min_voltage + noise_bounds) && sum < (max_voltage - noise_bounds))) {continue;}; //if the voltage value does not fall in the measurement range, then skip this iteration and start the while loop again (meaning there are no peaks)
 		is_v_high = 1;							//there is a peak, the voltage is high
-		for(int i = 1; i <= samples; i++){		//take samples
+		for(int i = 1; i < samples; i++){		//take samples
 			sum += analogRead();
 		}
 		break;									//break the while loop
@@ -206,44 +206,31 @@ uint16_t sample_adc(uint8_t samples, uint16_t min_voltage, uint16_t max_voltage,
 	if(ABORTED == 1) {return 0;}					//if the abort is triggered, return with 0
 
 	wait_for_min_threshold(is_okay);			//wait for the peak to drop
-
+	is_v_high = 0;
 	return (uint16_t)(sum/samples);				//return the sampled average ADC value of the peak
 }
 
 uint16_t analogRead()							//function for getting the ADC value
 {
-	HAL_ADC_PollForConversion(&hadc1, 100);		// poll the ADC for conversion
+	HAL_ADC_PollForConversion(&hadc1, 10);		// poll the ADC for conversion, timeout after 10 ms
 	uint32_t value = HAL_ADC_GetValue(&hadc1);	//HAL_ADC_GetValue returns in uint32_t !!!
 	return (uint16_t)value; 						// get the ADC value cast in uint16_t
 }
 
 
-uint16_t get_temperature() {					//function for measuring the inside temperature of the STM32 units: K (deg)
-	select_temperature_channel();				//select the temperature channel
-	uint32_t value = 0;							//for sampling
+//function for measuring the inside temperature of the STM32 units: K (deg)
+uint16_t get_temperature(uint16_t input_refint_voltage) {	//the calculation also depends on the reference voltage
+	select_temperature_channel();							//select the temperature channel
+	uint32_t value = 0;										//for sampling
 	HAL_ADCEx_Calibration_Start(&hadc1, ADC_SINGLE_ENDED); 	// ADC auto calibration for single-ended input (has to be called before start)
 	HAL_ADC_Start(&hadc1);									//start the ADC
-	HAL_ADC_PollForConversion(&hadc1, 100);		// poll the ADC for conversion
+	HAL_ADC_PollForConversion(&hadc1, 100);					// poll the ADC for conversion
 	value = HAL_ADC_GetValue(&hadc1);
-										//inbuilt driver for temperature calc; (273 - offset + °C = K)
-	uint32_t adc = 273 - 8 + __LL_ADC_CALC_TEMPERATURE_TYP_PARAMS(4300, 1430, 25, 3300, value, LL_ADC_RESOLUTION_12B);
 
+	//uint32_t adc = 273 - 8 + __LL_ADC_CALC_TEMPERATURE_TYP_PARAMS(4300, 1430, 25, 3300, value, LL_ADC_RESOLUTION_12B); //inbuilt driver for temperature calculation typical parameters; (273 - offset + °C = K)
 
-	/*uint16_t ref_point = 1430;	//take the voltage, where the temperature is 25 °C or 298 K
-	uint32_t conv = 0;				//convert (and also look out for not getting negative values and twos complement
-	if(value <= ref_point) {				//Temperature (in °C) = {(V25 – VTS) / Avg_Slope} + 25 according to datasheet
-		conv = 273-((ref_point-value)/4.3);
-	}
-	else {conv = 273+((value-ref_point)/4.3);};
+	uint32_t adc = 273 + __LL_ADC_CALC_TEMPERATURE(input_refint_voltage, value, LL_ADC_RESOLUTION_12B); //inbuilt driver for temperature calculation from stored factory presets; (273 + °C = K)
 
-	int *ptr1 = 0x1FFFF7B8;		//memory adresses with stored calibration values according to datasheet, but seem to be garbage
-	int *ptr2 = 0x1FFFF7B9;
-	int *ptr3 = 0x1FFFF7C2;
-	int *ptr4 = 0x1FFFF7C3;
-	int u1 = &ptr1;
-	int u2 = &ptr2;
-	int u3 = &ptr3;
-	int u4 = &ptr4;*/
 
 	HAL_ADC_Stop(&hadc1);
 	return (uint16_t)adc;		//return the temperature in K, uint16_t
@@ -255,7 +242,7 @@ uint16_t get_refint_voltage() {				//function for measuring the internal referen
 	HAL_ADC_Start(&hadc1);									//start the ADC
 	HAL_ADC_PollForConversion(&hadc1, 100);
 	uint16_t adc1 = HAL_ADC_GetValue(&hadc1);
-	adc1 = __LL_ADC_CALC_VREFANALOG_VOLTAGE(adc1, LL_ADC_RESOLUTION_12B);
+	adc1 = __LL_ADC_CALC_VREFANALOG_VOLTAGE(adc1, LL_ADC_RESOLUTION_12B); //convert the digital value to mV
 	HAL_ADC_Stop(&hadc1);
 	return (uint16_t)adc1;					//return the voltage in mV, uint16_t
 };
